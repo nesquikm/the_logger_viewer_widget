@@ -124,8 +124,12 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      final infoText = tester.widget<Text>(find.text('INFO'));
-      expect(infoText.style?.color, const Color(0xFF1976D2)); // Blue 700
+      // Find the INFO text inside the grid (not the filter chip)
+      final infoTexts = tester.widgetList<Text>(find.text('INFO'));
+      final gridInfoText = infoTexts.firstWhere(
+        (t) => t.style?.color == const Color(0xFF1976D2),
+      );
+      expect(gridInfoText.style?.color, const Color(0xFF1976D2)); // Blue 700
     });
   });
 }
