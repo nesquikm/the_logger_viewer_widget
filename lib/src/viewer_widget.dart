@@ -4,6 +4,8 @@ import 'package:the_logger_viewer_widget/src/filter_bar.dart';
 import 'package:the_logger_viewer_widget/src/log_data_source.dart';
 import 'package:the_logger_viewer_widget/src/log_grid.dart';
 import 'package:the_logger_viewer_widget/src/log_list.dart';
+import 'package:the_logger_viewer_widget/src/record_details.dart';
+import 'package:the_logger_viewer_widget/src/session_navigator.dart';
 
 class TheLoggerViewerWidget extends StatefulWidget {
   const TheLoggerViewerWidget({
@@ -33,6 +35,7 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   int? _selectedLogId;
   bool _loading = true;
   String _searchText = '';
+  int? _selectedSessionId;
 
   // Filter state
   Set<String> _filterLevels = {};
@@ -57,11 +60,27 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   }
 
   void _applyFilters() {
-    _displayedLogs = _dataSource.applyFilters(
-      levels: _filterLevels.isEmpty ? null : _filterLevels,
-      text: _searchText.isEmpty ? null : _searchText,
-      logger: _filterLogger,
-    );
+    var logs = _selectedSessionId != null
+        ? _dataSource.logsForSession(_selectedSessionId!)
+        : _dataSource.logs;
+
+    if (_filterLevels.isNotEmpty || _searchText.isNotEmpty || _filterLogger != null) {
+      if (_filterLevels.isNotEmpty) {
+        logs = logs.where((log) => _filterLevels.contains(log['level'])).toList();
+      }
+      if (_searchText.isNotEmpty) {
+        final lowerText = _searchText.toLowerCase();
+        logs = logs.where((log) {
+          final message = (log['message'] as String?)?.toLowerCase() ?? '';
+          return message.contains(lowerText);
+        }).toList();
+      }
+      if (_filterLogger != null && _filterLogger!.isNotEmpty) {
+        logs = logs.where((log) => log['logger_name'] == _filterLogger).toList();
+      }
+    }
+
+    _displayedLogs = logs;
   }
 
   void _onFiltersChanged({
@@ -77,11 +96,28 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
     });
   }
 
+  void _onSessionChanged(int? sessionId) {
+    setState(() {
+      _selectedSessionId = sessionId;
+      _selectedLogId = null;
+      _applyFilters();
+    });
+  }
+
   void _onLogTap(Map<String, Object?> log) {
     setState(() {
       final id = log['id'] as int?;
       _selectedLogId = _selectedLogId == id ? null : id;
     });
+  }
+
+  Map<String, Object?>? get _selectedLog {
+    if (_selectedLogId == null) return null;
+    try {
+      return _displayedLogs.firstWhere((log) => log['id'] == _selectedLogId);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<String> get _availableLevels {
@@ -110,40 +146,66 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
 
     return Column(
       children: [
-        if (_dataSource.logs.isNotEmpty)
-          FilterBar(
-            availableLevels: _availableLevels,
-            availableLoggers: _availableLoggers,
-            onFiltersChanged: _onFiltersChanged,
+        if (_dataSource.logs.isNotEmpty) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                FilterBar(
+                  availableLevels: _availableLevels,
+                  availableLoggers: _availableLoggers,
+                  onFiltersChanged: _onFiltersChanged,
+                ),
+                SessionNavigator(
+                  sessionIds: _dataSource.sessionIds,
+                  selectedSessionId: _selectedSessionId,
+                  onSessionChanged: _onSessionChanged,
+                ),
+              ],
+            ),
           ),
+        ],
         Expanded(
           child: _displayedLogs.isEmpty
               ? const Center(child: Text('No logs available'))
               : LayoutBuilder(
                   builder: (context, constraints) {
-                    if (constraints.maxWidth >= 600) {
-                      return LogGrid(
-                        logs: _displayedLogs,
-                        selectedLogId: _selectedLogId,
-                        onLogTap: _onLogTap,
-                        customColorScheme: widget.colorScheme,
-                        messageBuilder: _searchText.isNotEmpty
-                            ? (message) => HighlightedText(
-                                  text: message,
-                                  highlight: _searchText,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )
-                            : null,
-                      );
-                    } else {
-                      return LogList(
-                        logs: _displayedLogs,
-                        selectedLogId: _selectedLogId,
-                        onLogTap: _onLogTap,
-                        customColorScheme: widget.colorScheme,
+                    final logView = constraints.maxWidth >= 600
+                        ? LogGrid(
+                            logs: _displayedLogs,
+                            selectedLogId: _selectedLogId,
+                            onLogTap: _onLogTap,
+                            customColorScheme: widget.colorScheme,
+                            messageBuilder: _searchText.isNotEmpty
+                                ? (message) => HighlightedText(
+                                      text: message,
+                                      highlight: _searchText,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                : null,
+                          )
+                        : LogList(
+                            logs: _displayedLogs,
+                            selectedLogId: _selectedLogId,
+                            onLogTap: _onLogTap,
+                            customColorScheme: widget.colorScheme,
+                          );
+
+                    if (_selectedLog != null) {
+                      return Column(
+                        children: [
+                          Expanded(child: logView),
+                          RecordDetails(
+                            log: _selectedLog!,
+                            searchText: _searchText,
+                            customColorScheme: widget.colorScheme,
+                          ),
+                        ],
                       );
                     }
+
+                    return logView;
                   },
                 ),
         ),
