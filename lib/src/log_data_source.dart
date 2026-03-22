@@ -16,8 +16,13 @@ class LogDataSource {
   TheLogger get _theLogger => _logger ?? TheLogger.i();
 
   Future<void> refresh() async {
-    // ignore: invalid_use_of_visible_for_testing_member
-    final allLogs = await _theLogger.getAllLogsAsMaps();
+    final List<Map<String, Object?>> allLogs;
+    try {
+      // ignore: invalid_use_of_visible_for_testing_member
+      allLogs = await _theLogger.getAllLogsAsMaps();
+    } catch (_) {
+      return;
+    }
 
     // Cap at maxRecords, keeping the most recent
     if (allLogs.length > maxRecords) {

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:the_logger_viewer_widget/src/export_button.dart';
 import 'package:the_logger_viewer_widget/src/extensions/text_extensions.dart';
 import 'package:the_logger_viewer_widget/src/filter_bar.dart';
 import 'package:the_logger_viewer_widget/src/log_data_source.dart';
@@ -6,6 +9,7 @@ import 'package:the_logger_viewer_widget/src/log_grid.dart';
 import 'package:the_logger_viewer_widget/src/log_list.dart';
 import 'package:the_logger_viewer_widget/src/record_details.dart';
 import 'package:the_logger_viewer_widget/src/session_navigator.dart';
+import 'package:the_logger_viewer_widget/src/viewer_page.dart';
 
 class TheLoggerViewerWidget extends StatefulWidget {
   const TheLoggerViewerWidget({
@@ -25,6 +29,18 @@ class TheLoggerViewerWidget extends StatefulWidget {
   final void Function(String filePath)? onExport;
   final LogDataSource? dataSource;
 
+  /// Push a full-screen log viewer page.
+  static void show(BuildContext context) {
+    Navigator.of(context).push(route());
+  }
+
+  /// Use as a route in GoRouter / Navigator.
+  static Route<void> route() {
+    return MaterialPageRoute<void>(
+      builder: (_) => const TheLoggerViewerPage(),
+    );
+  }
+
   @override
   State<TheLoggerViewerWidget> createState() => _TheLoggerViewerWidgetState();
 }
@@ -36,6 +52,8 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   bool _loading = true;
   String _searchText = '';
   int? _selectedSessionId;
+  Timer? _refreshTimer;
+  DateTime? _lastRefresh;
 
   // Filter state
   Set<String> _filterLevels = {};
@@ -47,6 +65,17 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
     _dataSource = widget.dataSource ??
         LogDataSource(maxRecords: widget.maxRecords ?? 5000);
     _loadLogs();
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(widget.refreshInterval, (_) => _loadLogs());
   }
 
   Future<void> _loadLogs() async {
@@ -55,6 +84,7 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
       setState(() {
         _applyFilters();
         _loading = false;
+        _lastRefresh = DateTime.now();
       });
     }
   }
@@ -138,11 +168,21 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
     return loggers.toList()..sort();
   }
 
+  String _formatLastRefresh() {
+    if (_lastRefresh == null) return '';
+    final h = _lastRefresh!.hour.toString().padLeft(2, '0');
+    final m = _lastRefresh!.minute.toString().padLeft(2, '0');
+    final s = _lastRefresh!.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    final showExportButton = widget.showExport ?? true;
 
     return Column(
       children: [
@@ -161,6 +201,24 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
                   selectedSessionId: _selectedSessionId,
                   onSessionChanged: _onSessionChanged,
                 ),
+                // Manual refresh
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 20),
+                  tooltip: 'Refresh',
+                  onPressed: _loadLogs,
+                  visualDensity: VisualDensity.compact,
+                ),
+                if (_lastRefresh != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      _formatLastRefresh(),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
+                // Export button
+                if (showExportButton)
+                  ExportButton(onExport: widget.onExport),
               ],
             ),
           ),

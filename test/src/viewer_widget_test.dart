@@ -8,6 +8,20 @@ import 'package:the_logger_viewer_widget/src/viewer_widget.dart';
 
 import '../helpers.dart';
 
+/// Long interval to prevent auto-refresh timer from firing during tests.
+const _noAutoRefresh = Duration(hours: 1);
+
+Widget _buildWidget(LogDataSource ds) {
+  return MaterialApp(
+    home: Scaffold(
+      body: TheLoggerViewerWidget(
+        dataSource: ds,
+        refreshInterval: _noAutoRefresh,
+      ),
+    ),
+  );
+}
+
 void main() {
   late MockTheLogger mockLogger;
 
@@ -24,18 +38,11 @@ void main() {
           .thenAnswer((_) => completer.future);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-      // Complete to avoid dangling future
       completer.complete([]);
       await tester.pumpAndSettle();
     });
@@ -47,18 +54,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
-
       await tester.pumpAndSettle();
 
-      // Grid has header columns
       expect(find.text('Timestamp'), findsOneWidget);
       expect(find.text('Level'), findsOneWidget);
       expect(find.text('Logger'), findsOneWidget);
@@ -72,20 +71,11 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
-
       await tester.pumpAndSettle();
 
-      // List does not have grid header columns
       expect(find.text('Timestamp'), findsNothing);
-      // But still shows log data
       expect(find.text('App started'), findsOneWidget);
     });
 
@@ -93,16 +83,10 @@ void main() {
       when(() => mockLogger.getAllLogsAsMaps()).thenAnswer((_) async => []);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
-
       await tester.pumpAndSettle();
+
       expect(find.text('No logs available'), findsOneWidget);
     });
 
@@ -113,23 +97,104 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
-
       await tester.pumpAndSettle();
 
-      // Find the INFO text inside the grid (not the filter chip)
       final infoTexts = tester.widgetList<Text>(find.text('INFO'));
       final gridInfoText = infoTexts.firstWhere(
         (t) => t.style?.color == const Color(0xFF1976D2),
       );
-      expect(gridInfoText.style?.color, const Color(0xFF1976D2)); // Blue 700
+      expect(gridInfoText.style?.color, const Color(0xFF1976D2));
+    });
+
+    testWidgets('auto-refresh fires at configured interval', (tester) async {
+      var callCount = 0;
+      when(() => mockLogger.getAllLogsAsMaps()).thenAnswer((_) async {
+        callCount++;
+        return List.of(sampleLogs);
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TheLoggerViewerWidget(
+              dataSource: LogDataSource(logger: mockLogger),
+              refreshInterval: const Duration(seconds: 5),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final initialCount = callCount;
+
+      // Advance time by 5 seconds to trigger auto-refresh
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      expect(callCount, greaterThan(initialCount));
+    });
+
+    testWidgets('manual refresh button works', (tester) async {
+      tester.view.physicalSize = const Size(1200, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildWidget(LogDataSource(logger: mockLogger)),
+      );
+      await tester.pumpAndSettle();
+
+      // Initial load called once
+      verify(() => mockLogger.getAllLogsAsMaps()).called(1);
+
+      await tester.tap(find.byIcon(Icons.refresh));
+      await tester.pumpAndSettle();
+
+      // Refresh called again
+      verify(() => mockLogger.getAllLogsAsMaps()).called(1);
+    });
+
+    testWidgets('shows export button by default', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _buildWidget(LogDataSource(logger: mockLogger)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.file_download), findsOneWidget);
+    });
+
+    testWidgets('custom color scheme is applied', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TheLoggerViewerWidget(
+              dataSource: LogDataSource(logger: mockLogger),
+              refreshInterval: _noAutoRefresh,
+              colorScheme: const {'INFO': Colors.purple},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final infoTexts = tester.widgetList<Text>(find.text('INFO'));
+      final gridInfoText = infoTexts.firstWhere(
+        (t) => t.style?.color == Colors.purple,
+      );
+      expect(gridInfoText.style?.color, Colors.purple);
     });
   });
 }
