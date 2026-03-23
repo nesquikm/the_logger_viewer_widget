@@ -9,7 +9,26 @@ import 'package:the_logger_viewer_widget/src/record_details.dart';
 import 'package:the_logger_viewer_widget/src/session_navigator.dart';
 import 'package:the_logger_viewer_widget/src/viewer_page.dart';
 
+/// Embeddable log viewer widget that reads from [TheLogger] directly.
+///
+/// Displays logs in a responsive layout — scrollable table on wide screens
+/// (>=600dp), compact list on narrow screens. Supports filtering, search
+/// highlighting, session navigation, record details, and export.
+///
+/// ```dart
+/// // Drop-in usage
+/// TheLoggerViewerWidget()
+///
+/// // Full-screen page
+/// TheLoggerViewerWidget.show(context);
+/// ```
 class TheLoggerViewerWidget extends StatefulWidget {
+  /// Creates a log viewer widget.
+  ///
+  /// Pass [colorScheme] to override default level colors, [maxRecords] to
+  /// limit displayed records (default 5000), [showExport] to toggle the
+  /// export button, and [onExport] to handle export with a custom callback
+  /// instead of the default share_plus behavior.
   const TheLoggerViewerWidget({
     super.key,
     this.colorScheme,
@@ -19,10 +38,22 @@ class TheLoggerViewerWidget extends StatefulWidget {
     this.dataSource,
   });
 
+  /// Custom level-name-to-color mapping. Overrides [LevelColors.defaultColors]
+  /// for any levels present in the map.
   final Map<String, Color>? colorScheme;
+
+  /// Whether to show the export button. Defaults to `true`.
   final bool? showExport;
+
+  /// Maximum number of records to display. Defaults to 5000.
   final int? maxRecords;
+
+  /// Optional callback invoked with the exported file path.
+  ///
+  /// When provided, replaces the default share_plus export behavior.
   final void Function(String filePath)? onExport;
+
+  /// Optional data source for dependency injection (primarily for testing).
   final LogDataSource? dataSource;
 
   /// Push a full-screen log viewer page.
@@ -105,9 +136,13 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
         ? _dataSource.logsForSession(_selectedSessionId!)
         : _dataSource.logs;
 
-    if (_filterLevels.isNotEmpty || _searchText.isNotEmpty || _filterLogger != null) {
+    if (_filterLevels.isNotEmpty ||
+        _searchText.isNotEmpty ||
+        _filterLogger != null) {
       if (_filterLevels.isNotEmpty) {
-        logs = logs.where((log) => _filterLevels.contains(log['level'])).toList();
+        logs = logs
+            .where((log) => _filterLevels.contains(log['level']))
+            .toList();
       }
       if (_searchText.isNotEmpty) {
         final lowerText = _searchText.toLowerCase();
@@ -117,7 +152,9 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
         }).toList();
       }
       if (_filterLogger != null && _filterLogger!.isNotEmpty) {
-        logs = logs.where((log) => log['logger_name'] == _filterLogger).toList();
+        logs = logs
+            .where((log) => log['logger_name'] == _filterLogger)
+            .toList();
       }
     }
 
@@ -228,8 +265,7 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
                     ),
                   ),
                 // Export button
-                if (showExportButton)
-                  ExportButton(onExport: widget.onExport),
+                if (showExportButton) ExportButton(onExport: widget.onExport),
               ],
             ),
           ),

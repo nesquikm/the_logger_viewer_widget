@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
+/// Maps log level names to display colors.
+///
+/// Provides sensible defaults for standard logging levels (SHOUT through
+/// FINEST) and supports custom overrides via [colorForLevel].
 class LevelColors {
   LevelColors._();
 
+  /// Default color mapping for standard log levels.
   static const Map<String, Color> defaultColors = {
     'SHOUT': Color(0xFFB71C1C), // Red 900
     'SEVERE': Color(0xFFD32F2F), // Red 700
@@ -14,6 +19,10 @@ class LevelColors {
     'FINEST': Color(0xFFBDBDBD), // Grey 400
   };
 
+  /// Returns the color for a given log [level].
+  ///
+  /// If [customScheme] contains the level, that color is used. Otherwise
+  /// falls back to [defaultColors], then to [Colors.grey].
   static Color colorForLevel(
     String level, {
     Map<String, Color>? customScheme,
