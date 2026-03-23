@@ -1,3 +1,7 @@
+## 0.0.3
+
+* Fix log level display: normalize integer level values from `the_logger` to level name strings.
+
 ## 0.0.2
 
 * Remove unused `share_plus` dependency (fixes pub.dev dependency score).

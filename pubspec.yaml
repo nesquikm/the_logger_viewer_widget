@@ -1,6 +1,6 @@
 name: the_logger_viewer_widget
 description: "Embeddable Flutter widget for viewing logs from the_logger directly — no file export needed. Drop-in log viewer with filtering, search, session navigation, and real-time updates."
-version: 0.0.2
+version: 0.0.3
 repository: https://github.com/nesquikm/the_logger_viewer_widget
 issue_tracker: https://github.com/nesquikm/the_logger_viewer_widget/issues
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:logging/logging.dart';
 import 'package:the_logger/the_logger.dart';
 
 /// Fetches, caches, and streams log data from [TheLogger].
@@ -64,11 +65,23 @@ class LogDataSource {
       // ignore: invalid_use_of_visible_for_testing_member
       final allLogs = await _theLogger.getAllLogsAsMaps();
 
+      // Convert int level values to level name strings.
+      final normalized = allLogs.map((log) {
+        final level = log['level'];
+        if (level is int) {
+          return {
+            ...log,
+            'level': _levelName(level),
+          };
+        }
+        return log;
+      }).toList();
+
       // Cap at maxRecords, keeping the most recent
-      if (allLogs.length > maxRecords) {
-        _logs = allLogs.sublist(allLogs.length - maxRecords);
+      if (normalized.length > maxRecords) {
+        _logs = normalized.sublist(normalized.length - maxRecords);
       } else {
-        _logs = List.of(allLogs);
+        _logs = List.of(normalized);
       }
 
       // Extract distinct session IDs in order
@@ -118,5 +131,12 @@ class LogDataSource {
     }
 
     return filtered;
+  }
+
+  static String _levelName(int value) {
+    for (final level in Level.LEVELS) {
+      if (level.value == value) return level.name;
+    }
+    return value.toString();
   }
 }
