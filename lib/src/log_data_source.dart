@@ -12,6 +12,7 @@ class LogDataSource {
 
   StreamSubscription<MaskedLogRecord>? _subscription;
   VoidCallback? onUpdate;
+  bool _disposed = false;
 
   List<Map<String, Object?>> _logs = [];
   List<int> _sessionIds = [];
@@ -24,6 +25,7 @@ class LogDataSource {
   /// Initial load + subscribe to stream for live updates.
   Future<void> init() async {
     await refresh();
+    if (_disposed) return;
     _subscription = _theLogger.stream.listen((_) async {
       await refresh();
       onUpdate?.call();
@@ -32,6 +34,7 @@ class LogDataSource {
 
   /// Cancel stream subscription.
   void dispose() {
+    _disposed = true;
     _subscription?.cancel();
     _subscription = null;
   }

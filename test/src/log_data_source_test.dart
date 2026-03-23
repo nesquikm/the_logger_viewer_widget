@@ -214,6 +214,33 @@ void main() {
       verifyNever(() => mockLogger.getAllLogsAsMaps());
     });
 
+    test('dispose during init prevents subscription leak', () async {
+      final refreshCompleter = Completer<List<Map<String, Object?>>>();
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) => refreshCompleter.future);
+
+      final ds = LogDataSource(logger: mockLogger);
+      final initFuture = ds.init();
+
+      // Dispose before refresh completes
+      ds.dispose();
+
+      // Now let refresh complete
+      refreshCompleter.complete(List.of(sampleLogs));
+      await initFuture;
+
+      // Stream event after early dispose should NOT trigger re-fetch
+      reset(mockLogger);
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) async => List.of(sampleLogs));
+      when(() => mockLogger.stream).thenAnswer((_) => streamController.stream);
+
+      streamController.add(makeRecord('after early dispose'));
+      await Future<void>.delayed(Duration.zero);
+
+      verifyNever(() => mockLogger.getAllLogsAsMaps());
+    });
+
     test('stream respects maxRecords cap', () async {
       final manyLogs = List.generate(
         10,
