@@ -141,4 +141,111 @@ void main() {
       expect(emittedLogger, 'NetworkLogger');
     });
   });
+
+  group('FilterBar visual', () {
+    testWidgets('level chips render as FilterChip widgets', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterBar(
+              availableLevels: const ['INFO', 'SEVERE', 'WARNING'],
+              availableLoggers: const ['AppLogger'],
+              onFiltersChanged: ({
+                required Set<String> levels,
+                required String text,
+                String? logger,
+              }) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(FilterChip), findsNWidgets(3));
+      expect(find.text('INFO'), findsOneWidget);
+      expect(find.text('SEVERE'), findsOneWidget);
+      expect(find.text('WARNING'), findsOneWidget);
+    });
+
+    testWidgets('active filter chip is visually distinct (selected state)',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterBar(
+              availableLevels: const ['INFO', 'SEVERE'],
+              availableLoggers: const ['AppLogger'],
+              onFiltersChanged: ({
+                required Set<String> levels,
+                required String text,
+                String? logger,
+              }) {},
+            ),
+          ),
+        ),
+      );
+
+      // Initially no chips are selected
+      final infoChipBefore = tester.widget<FilterChip>(
+        find.widgetWithText(FilterChip, 'INFO'),
+      );
+      expect(infoChipBefore.selected, isFalse);
+
+      // Tap to select INFO
+      await tester.tap(find.text('INFO'));
+      await tester.pump();
+
+      // Now the INFO chip should be selected
+      final infoChipAfter = tester.widget<FilterChip>(
+        find.widgetWithText(FilterChip, 'INFO'),
+      );
+      expect(infoChipAfter.selected, isTrue);
+
+      // SEVERE should remain unselected
+      final severeChip = tester.widget<FilterChip>(
+        find.widgetWithText(FilterChip, 'SEVERE'),
+      );
+      expect(severeChip.selected, isFalse);
+    });
+
+    testWidgets('search field shows search icon and hint', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterBar(
+              availableLevels: const ['INFO'],
+              availableLoggers: const ['AppLogger'],
+              onFiltersChanged: ({
+                required Set<String> levels,
+                required String text,
+                String? logger,
+              }) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.search), findsOneWidget);
+      expect(find.text('Search...'), findsOneWidget);
+    });
+
+    testWidgets('hides logger dropdown with single logger', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterBar(
+              availableLevels: const ['INFO'],
+              availableLoggers: const ['AppLogger'],
+              onFiltersChanged: ({
+                required Set<String> levels,
+                required String text,
+                String? logger,
+              }) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(DropdownButton<String?>), findsNothing);
+    });
+  });
 }

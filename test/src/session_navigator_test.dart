@@ -135,4 +135,196 @@ void main() {
       expect(find.byType(DropdownButton<int?>), findsNothing);
     });
   });
+
+  group('SessionNavigator visual', () {
+    testWidgets('dropdown shows session list when opened', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [10, 20, 30],
+              selectedSessionId: null,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      // Open dropdown
+      await tester.tap(find.byType(DropdownButton<int?>));
+      await tester.pumpAndSettle();
+
+      expect(find.text('All sessions'), findsWidgets);
+      expect(find.text('Session 10'), findsWidgets);
+      expect(find.text('Session 20'), findsWidgets);
+      expect(find.text('Session 30'), findsWidgets);
+    });
+
+    testWidgets('all nav buttons disabled when no session selected',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [1, 2, 3],
+              selectedSessionId: null,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final firstBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.first_page),
+      );
+      final prevBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+      final nextBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_right),
+      );
+      final lastBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.last_page),
+      );
+
+      expect(firstBtn.onPressed, isNull);
+      expect(prevBtn.onPressed, isNull);
+      expect(nextBtn.onPressed, isNull);
+      expect(lastBtn.onPressed, isNull);
+    });
+
+    testWidgets('next and last disabled at last session', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [1, 2, 3],
+              selectedSessionId: 3,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final nextBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_right),
+      );
+      final lastBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.last_page),
+      );
+
+      expect(nextBtn.onPressed, isNull);
+      expect(lastBtn.onPressed, isNull);
+
+      // But first and previous should be enabled
+      final firstBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.first_page),
+      );
+      final prevBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+
+      expect(firstBtn.onPressed, isNotNull);
+      expect(prevBtn.onPressed, isNotNull);
+    });
+
+    testWidgets('prev and first disabled at first session', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [1, 2, 3],
+              selectedSessionId: 1,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final firstBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.first_page),
+      );
+      final prevBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+
+      expect(firstBtn.onPressed, isNull);
+      expect(prevBtn.onPressed, isNull);
+
+      // Next and last should be enabled
+      final nextBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_right),
+      );
+      final lastBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.last_page),
+      );
+
+      expect(nextBtn.onPressed, isNotNull);
+      expect(lastBtn.onPressed, isNotNull);
+    });
+
+    testWidgets('all nav buttons enabled at middle session', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [1, 2, 3],
+              selectedSessionId: 2,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final firstBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.first_page),
+      );
+      final prevBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+      final nextBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_right),
+      );
+      final lastBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.last_page),
+      );
+
+      expect(firstBtn.onPressed, isNotNull);
+      expect(prevBtn.onPressed, isNotNull);
+      expect(nextBtn.onPressed, isNotNull);
+      expect(lastBtn.onPressed, isNotNull);
+    });
+
+    testWidgets('nav buttons have correct tooltips', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionNavigator(
+              sessionIds: const [1, 2, 3],
+              selectedSessionId: 2,
+              onSessionChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final firstBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.first_page),
+      );
+      final prevBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_left),
+      );
+      final nextBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.chevron_right),
+      );
+      final lastBtn = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.last_page),
+      );
+
+      expect(firstBtn.tooltip, 'First session');
+      expect(prevBtn.tooltip, 'Previous session');
+      expect(nextBtn.tooltip, 'Next session');
+      expect(lastBtn.tooltip, 'Last session');
+    });
+  });
 }

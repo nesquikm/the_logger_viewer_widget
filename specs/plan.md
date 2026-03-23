@@ -2,9 +2,10 @@
 
 ## Milestone Order
 
-M1 → M2 → M3 → M4
+M1 → M2 → M3 → M4 → M5
+                    ↘ M6
 
-M2 and M3 can be worked in parallel after M1. M4 depends on both M2 and M3.
+M2 and M3 can be worked in parallel after M1. M4 depends on both M2 and M3. M5 and M6 depend on M4. M5 and M6 can be worked in parallel. M1–M4 are complete.
 
 ---
 
@@ -137,9 +138,88 @@ M2 and M3 can be worked in parallel after M1. M4 depends on both M2 and M3.
 
 ---
 
+## M5: Visual Widget Tests
+
+**Goal:** Comprehensive widget tests verifying visual presentation — theming, colors, responsive layout, empty/edge states, and cross-widget integration.
+**Prerequisites:** M4
+
+**Tasks:**
+1. `LogRow` visual tests — correct level colors applied, alternating row backgrounds, text truncation
+2. `LogGrid` visual tests — column headers present and ordered, row color-coding visible, scrollable with many rows
+3. `LogList` visual tests — compact layout renders level/logger/time header + message body, level color indicator
+4. `FilterBar` visual tests — level chips show correct colors, active filter state visually distinct, clear button visible when filters active
+5. `SessionNavigator` visual tests — dropdown shows session list, nav buttons disabled at boundaries (first/last)
+6. `RecordDetails` visual tests — all fields rendered, JSON pretty-printed with indentation, copy button present, search highlights visible
+7. `ExportButton` visual tests — loading indicator shown during export, button disabled while loading
+8. `ViewerWidget` integration visual tests — responsive layout switching at 600dp, empty state message when no logs, dark/light theme renders correctly, custom colorScheme applied
+9. `ViewerPage` visual tests — app bar with title, back navigation, full-screen layout
+
+**Tests:**
+- LogRow: level colors, alternating backgrounds, text truncation
+- LogGrid: column headers, row colors, scroll behavior
+- LogList: compact layout, level indicator
+- FilterBar: chip colors, active state, clear button
+- SessionNavigator: dropdown contents, button disabled states
+- RecordDetails: field rendering, JSON formatting, highlights
+- ExportButton: loading indicator, disabled state
+- ViewerWidget: responsive switch, empty state, dark/light theme, custom colors
+- ViewerPage: app bar, back nav, layout
+
+**Acceptance Criteria:**
+- [x] Every widget has visual tests covering its presentation states
+- [x] Light and dark theme tested on ViewerWidget
+- [x] Custom colorScheme overrides verified
+- [x] Responsive breakpoint tested (grid at >=600dp, list at <600dp)
+- [x] Empty state / no-matching-filters state tested
+- [x] Nav button enabled/disabled states verified at session boundaries
+- [x] Loading states verified (export)
+- [x] Gate passes: `fvm flutter analyze && fvm flutter test`
+
+**Gate:** `fvm flutter analyze && fvm flutter test`
+
+---
+
+## M6: Stream-Based Live Updates
+
+**Goal:** Replace timer-based polling with the_logger's streaming API for real-time log updates.
+**Prerequisites:** M4
+
+**Tasks:**
+1. Bump `the_logger` dependency to `^0.0.20` in `pubspec.yaml`
+2. Update `LogDataSource` — add `init()` to subscribe to TheLogger.i() stream, append new records to cache (respecting maxRecords cap)
+3. Add `onUpdate` callback to `LogDataSource` so ViewerWidget can call `setState` on new records
+4. Add `dispose()` to `LogDataSource` — cancel stream subscription
+5. Remove `Timer.periodic` polling from `ViewerWidget`
+6. Remove `refreshInterval` parameter from `TheLoggerViewerWidget` public API
+7. Keep manual refresh button (calls `LogDataSource.refresh()` for full re-fetch)
+8. Update all existing tests — replace timer-based mocks with stream-based mocks
+
+**Tests:**
+- LogDataSource: stream subscription receives new records, appends to cache, respects maxRecords
+- LogDataSource: onUpdate callback fires when stream emits
+- LogDataSource: dispose cancels stream subscription
+- ViewerWidget: no Timer.periodic usage
+- ViewerWidget: new records appear without manual refresh
+- Manual refresh button still re-fetches full dataset
+
+**Acceptance Criteria:**
+- [ ] LogDataSource subscribes to the_logger stream on init
+- [ ] New log records appear in the viewer without polling
+- [ ] refreshInterval parameter removed from public API
+- [ ] Manual refresh button still works
+- [ ] Stream subscription disposed on widget dispose
+- [ ] No Timer.periodic usage remains
+- [ ] Gate passes: `fvm flutter analyze && fvm flutter test`
+
+**Gate:** `fvm flutter analyze && fvm flutter test`
+
+---
+
 ## Milestone Dependency Graph
 
 ```
-M1 → M2 → M4
- ↘ M3 ↗
+M1 → M2 → M4 → M5
+ ↘ M3 ↗    ↘ M6
 ```
+
+M1–M4 complete. M5 and M6 are ready to start in parallel.
