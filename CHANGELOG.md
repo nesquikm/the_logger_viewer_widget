@@ -1,3 +1,7 @@
+## 0.0.2
+
+* Remove unused `share_plus` dependency (fixes pub.dev dependency score).
+
 ## 0.0.1
 
 * Initial release.
