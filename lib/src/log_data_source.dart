@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:the_logger/the_logger.dart';
 
 class LogDataSource {
@@ -7,6 +10,9 @@ class LogDataSource {
   final int maxRecords;
   final TheLogger? _logger;
 
+  StreamSubscription<MaskedLogRecord>? _subscription;
+  VoidCallback? onUpdate;
+
   List<Map<String, Object?>> _logs = [];
   List<int> _sessionIds = [];
 
@@ -14,6 +20,21 @@ class LogDataSource {
   List<int> get sessionIds => _sessionIds;
 
   TheLogger get _theLogger => _logger ?? TheLogger.i();
+
+  /// Initial load + subscribe to stream for live updates.
+  Future<void> init() async {
+    await refresh();
+    _subscription = _theLogger.stream.listen((_) async {
+      await refresh();
+      onUpdate?.call();
+    });
+  }
+
+  /// Cancel stream subscription.
+  void dispose() {
+    _subscription?.cancel();
+    _subscription = null;
+  }
 
   Future<void> refresh() async {
     final List<Map<String, Object?>> allLogs;

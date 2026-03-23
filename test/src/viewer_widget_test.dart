@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:the_logger/the_logger.dart';
 import 'package:the_logger_viewer_widget/src/log_data_source.dart';
 import 'package:the_logger_viewer_widget/src/log_grid.dart';
 import 'package:the_logger_viewer_widget/src/log_list.dart';
@@ -10,16 +12,12 @@ import 'package:the_logger_viewer_widget/src/viewer_widget.dart';
 
 import '../helpers.dart';
 
-/// Long interval to prevent auto-refresh timer from firing during tests.
-const _noAutoRefresh = Duration(hours: 1);
-
 Widget _buildWidget(LogDataSource ds, {ThemeData? theme}) {
   return MaterialApp(
     theme: theme,
     home: Scaffold(
       body: TheLoggerViewerWidget(
         dataSource: ds,
-        refreshInterval: _noAutoRefresh,
       ),
     ),
   );
@@ -36,7 +34,6 @@ Widget _buildWidgetWithOptions(
     home: Scaffold(
       body: TheLoggerViewerWidget(
         dataSource: ds,
-        refreshInterval: _noAutoRefresh,
         colorScheme: colorScheme,
         showExport: showExport,
       ),
@@ -46,11 +43,18 @@ Widget _buildWidgetWithOptions(
 
 void main() {
   late MockTheLogger mockLogger;
+  late StreamController<MaskedLogRecord> streamController;
 
   setUp(() {
     mockLogger = MockTheLogger();
+    streamController = StreamController<MaskedLogRecord>.broadcast();
     when(() => mockLogger.getAllLogsAsMaps())
         .thenAnswer((_) async => List.of(sampleLogs));
+    when(() => mockLogger.stream).thenAnswer((_) => streamController.stream);
+  });
+
+  tearDown(() {
+    streamController.close();
   });
 
   group('TheLoggerViewerWidget', () {
@@ -130,32 +134,51 @@ void main() {
       expect(gridInfoText.style?.color, const Color(0xFF1976D2));
     });
 
-    testWidgets('auto-refresh fires at configured interval', (tester) async {
-      var callCount = 0;
-      when(() => mockLogger.getAllLogsAsMaps()).thenAnswer((_) async {
-        callCount++;
-        return List.of(sampleLogs);
-      });
+    testWidgets('new records appear via stream without polling',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TheLoggerViewerWidget(
-              dataSource: LogDataSource(logger: mockLogger),
-              refreshInterval: const Duration(seconds: 5),
-            ),
-          ),
-        ),
+        _buildWidget(LogDataSource(logger: mockLogger)),
       );
       await tester.pumpAndSettle();
 
-      final initialCount = callCount;
+      expect(find.text('App started'), findsOneWidget);
 
-      // Advance time by 5 seconds to trigger auto-refresh
-      await tester.pump(const Duration(seconds: 5));
+      // Simulate new log arriving via stream
+      final updatedLogs = List.of(sampleLogs)
+        ..add({
+          'id': 4,
+          'session_id': 2,
+          'record_timestamp': '2026-01-01T12:00:00.000',
+          'time': '2026-01-01T12:00:00.000',
+          'level': 'INFO',
+          'logger_name': 'AppLogger',
+          'message': 'New stream log',
+          'error': null,
+          'stack_trace': null,
+        });
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) async => updatedLogs);
+
+      streamController.add(MaskedLogRecord(
+        Level.INFO,
+        'New stream log',
+        'AppLogger',
+        null,
+        null,
+        null,
+        null,
+        maskedMessage: 'New stream log',
+        maskedError: null,
+        maskedStackTrace: null,
+      ));
       await tester.pumpAndSettle();
 
-      expect(callCount, greaterThan(initialCount));
+      expect(find.text('New stream log'), findsOneWidget);
     });
 
     testWidgets('manual refresh button works', (tester) async {
@@ -204,7 +227,6 @@ void main() {
           home: Scaffold(
             body: TheLoggerViewerWidget(
               dataSource: LogDataSource(logger: mockLogger),
-              refreshInterval: _noAutoRefresh,
               colorScheme: const {'INFO': Colors.purple},
             ),
           ),

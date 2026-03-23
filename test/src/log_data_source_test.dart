@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:the_logger/the_logger.dart';
 import 'package:the_logger_viewer_widget/src/log_data_source.dart';
@@ -7,6 +10,7 @@ class MockTheLogger extends Mock implements TheLogger {}
 
 void main() {
   late MockTheLogger mockLogger;
+  late StreamController<MaskedLogRecord> streamController;
 
   final sampleLogs = [
     {
@@ -44,10 +48,31 @@ void main() {
     },
   ];
 
+  MaskedLogRecord makeRecord(String message) {
+    return MaskedLogRecord(
+      Level.INFO,
+      message,
+      'TestLogger',
+      null,
+      null,
+      null,
+      null,
+      maskedMessage: message,
+      maskedError: null,
+      maskedStackTrace: null,
+    );
+  }
+
   setUp(() {
     mockLogger = MockTheLogger();
+    streamController = StreamController<MaskedLogRecord>.broadcast();
     when(() => mockLogger.getAllLogsAsMaps())
         .thenAnswer((_) async => List.of(sampleLogs));
+    when(() => mockLogger.stream).thenAnswer((_) => streamController.stream);
+  });
+
+  tearDown(() {
+    streamController.close();
   });
 
   group('LogDataSource', () {
@@ -135,6 +160,82 @@ void main() {
 
       expect(ds.logs, isEmpty);
       expect(ds.sessionIds, isEmpty);
+    });
+  });
+
+  group('LogDataSource stream', () {
+    test('init subscribes to stream and loads initial data', () async {
+      final ds = LogDataSource(logger: mockLogger);
+      await ds.init();
+
+      expect(ds.logs, hasLength(3));
+      verify(() => mockLogger.getAllLogsAsMaps()).called(1);
+
+      ds.dispose();
+    });
+
+    test('stream event triggers re-fetch and onUpdate callback', () async {
+      var updateCount = 0;
+      final ds = LogDataSource(logger: mockLogger);
+      ds.onUpdate = () => updateCount++;
+      await ds.init();
+
+      // Reset to verify re-fetch
+      reset(mockLogger);
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) async => List.of(sampleLogs));
+      when(() => mockLogger.stream).thenAnswer((_) => streamController.stream);
+
+      // Emit a stream event
+      streamController.add(makeRecord('new log'));
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => mockLogger.getAllLogsAsMaps()).called(1);
+      expect(updateCount, 1);
+
+      ds.dispose();
+    });
+
+    test('dispose cancels stream subscription', () async {
+      final ds = LogDataSource(logger: mockLogger);
+      await ds.init();
+
+      ds.dispose();
+
+      // Emit after dispose — should not trigger re-fetch
+      reset(mockLogger);
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) async => List.of(sampleLogs));
+      when(() => mockLogger.stream).thenAnswer((_) => streamController.stream);
+
+      streamController.add(makeRecord('after dispose'));
+      await Future<void>.delayed(Duration.zero);
+
+      verifyNever(() => mockLogger.getAllLogsAsMaps());
+    });
+
+    test('stream respects maxRecords cap', () async {
+      final manyLogs = List.generate(
+        10,
+        (i) => <String, Object?>{
+          'id': i,
+          'session_id': 1,
+          'record_timestamp': '2026-01-01T10:00:00.000',
+          'level': 'INFO',
+          'logger_name': 'AppLogger',
+          'message': 'Log $i',
+        },
+      );
+      when(() => mockLogger.getAllLogsAsMaps())
+          .thenAnswer((_) async => manyLogs);
+
+      final ds = LogDataSource(maxRecords: 5, logger: mockLogger);
+      await ds.init();
+
+      expect(ds.logs, hasLength(5));
+      expect(ds.logs.first['id'], 5);
+
+      ds.dispose();
     });
   });
 }

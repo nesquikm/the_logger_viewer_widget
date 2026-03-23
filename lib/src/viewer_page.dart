@@ -7,14 +7,12 @@ class TheLoggerViewerPage extends StatelessWidget {
     this.colorScheme,
     this.maxRecords,
     this.onExport,
-    this.refreshInterval,
     this.showExport,
   });
 
   final Map<String, Color>? colorScheme;
   final int? maxRecords;
   final void Function(String filePath)? onExport;
-  final Duration? refreshInterval;
   final bool? showExport;
 
   @override
@@ -27,7 +25,6 @@ class TheLoggerViewerPage extends StatelessWidget {
         colorScheme: colorScheme,
         maxRecords: maxRecords,
         onExport: onExport,
-        refreshInterval: refreshInterval ?? const Duration(seconds: 2),
         showExport: showExport,
       ),
     );

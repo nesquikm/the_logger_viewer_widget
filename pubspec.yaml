@@ -1,0 +1,21 @@
+name: the_logger_viewer_widget
+description: "Embeddable Flutter widget for viewing logs from the_logger directly — no file export needed."
+version: 0.0.1
+homepage:
+
+environment:
+  sdk: ^3.11.1
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  the_logger: ^0.0.20
+  logging: ^1.3.0
+  share_plus: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mocktail: ^1.0.4

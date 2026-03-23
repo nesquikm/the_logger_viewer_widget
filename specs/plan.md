@@ -203,13 +203,13 @@ M2 and M3 can be worked in parallel after M1. M4 depends on both M2 and M3. M5 a
 - Manual refresh button still re-fetches full dataset
 
 **Acceptance Criteria:**
-- [ ] LogDataSource subscribes to the_logger stream on init
-- [ ] New log records appear in the viewer without polling
-- [ ] refreshInterval parameter removed from public API
-- [ ] Manual refresh button still works
-- [ ] Stream subscription disposed on widget dispose
-- [ ] No Timer.periodic usage remains
-- [ ] Gate passes: `fvm flutter analyze && fvm flutter test`
+- [x] LogDataSource subscribes to the_logger stream on init
+- [x] New log records appear in the viewer without polling
+- [x] refreshInterval parameter removed from public API
+- [x] Manual refresh button still works
+- [x] Stream subscription disposed on widget dispose
+- [x] No Timer.periodic usage remains
+- [x] Gate passes: `fvm flutter analyze && fvm flutter test`
 
 **Gate:** `fvm flutter analyze && fvm flutter test`
 
@@ -222,4 +222,4 @@ M1 → M2 → M4 → M5
  ↘ M3 ↗    ↘ M6
 ```
 
-M1–M4 complete. M5 and M6 are ready to start in parallel.
+M1–M6 complete.

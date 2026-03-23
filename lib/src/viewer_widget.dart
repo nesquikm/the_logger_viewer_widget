@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:the_logger_viewer_widget/src/export_button.dart';
 import 'package:the_logger_viewer_widget/src/extensions/text_extensions.dart';
@@ -14,7 +12,6 @@ import 'package:the_logger_viewer_widget/src/viewer_page.dart';
 class TheLoggerViewerWidget extends StatefulWidget {
   const TheLoggerViewerWidget({
     super.key,
-    this.refreshInterval = const Duration(seconds: 2),
     this.colorScheme,
     this.showExport,
     this.maxRecords,
@@ -22,7 +19,6 @@ class TheLoggerViewerWidget extends StatefulWidget {
     this.dataSource,
   });
 
-  final Duration refreshInterval;
   final Map<String, Color>? colorScheme;
   final bool? showExport;
   final int? maxRecords;
@@ -52,7 +48,6 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   bool _loading = true;
   String _searchText = '';
   int? _selectedSessionId;
-  Timer? _refreshTimer;
   DateTime? _lastRefresh;
 
   // Filter state
@@ -64,26 +59,41 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
     super.initState();
     _dataSource = widget.dataSource ??
         LogDataSource(maxRecords: widget.maxRecords ?? 5000);
-    _loadLogs();
-    _startAutoRefresh();
+    _dataSource.onUpdate = _onStreamUpdate;
+    _initDataSource();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _dataSource.dispose();
     super.dispose();
   }
 
-  void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(widget.refreshInterval, (_) => _loadLogs());
-  }
-
-  Future<void> _loadLogs() async {
-    await _dataSource.refresh();
+  Future<void> _initDataSource() async {
+    await _dataSource.init();
     if (mounted) {
       setState(() {
         _applyFilters();
         _loading = false;
+        _lastRefresh = DateTime.now();
+      });
+    }
+  }
+
+  void _onStreamUpdate() {
+    if (mounted) {
+      setState(() {
+        _applyFilters();
+        _lastRefresh = DateTime.now();
+      });
+    }
+  }
+
+  Future<void> _manualRefresh() async {
+    await _dataSource.refresh();
+    if (mounted) {
+      setState(() {
+        _applyFilters();
         _lastRefresh = DateTime.now();
       });
     }
@@ -205,7 +215,7 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh',
-                  onPressed: _loadLogs,
+                  onPressed: _manualRefresh,
                   visualDensity: VisualDensity.compact,
                 ),
                 if (_lastRefresh != null)
