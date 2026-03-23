@@ -37,29 +37,28 @@ class LogDataSource {
   }
 
   Future<void> refresh() async {
-    final List<Map<String, Object?>> allLogs;
     try {
       // ignore: invalid_use_of_visible_for_testing_member
-      allLogs = await _theLogger.getAllLogsAsMaps();
-    } catch (_) {
-      return;
-    }
+      final allLogs = await _theLogger.getAllLogsAsMaps();
 
-    // Cap at maxRecords, keeping the most recent
-    if (allLogs.length > maxRecords) {
-      _logs = allLogs.sublist(allLogs.length - maxRecords);
-    } else {
-      _logs = List.of(allLogs);
-    }
-
-    // Extract distinct session IDs in order
-    final seen = <int>{};
-    _sessionIds = [];
-    for (final log in _logs) {
-      final sessionId = log['session_id'] as int;
-      if (seen.add(sessionId)) {
-        _sessionIds.add(sessionId);
+      // Cap at maxRecords, keeping the most recent
+      if (allLogs.length > maxRecords) {
+        _logs = allLogs.sublist(allLogs.length - maxRecords);
+      } else {
+        _logs = List.of(allLogs);
       }
+
+      // Extract distinct session IDs in order
+      final seen = <int>{};
+      _sessionIds = [];
+      for (final log in _logs) {
+        final sessionId = log['session_id'] as int;
+        if (seen.add(sessionId)) {
+          _sessionIds.add(sessionId);
+        }
+      }
+    } catch (_) {
+      // Silently handle errors (e.g., TheLogger not initialized)
     }
   }
 
