@@ -43,7 +43,6 @@ class TheLoggerViewerWidget extends StatefulWidget {
 
 class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   late LogDataSource _dataSource;
-  late bool _ownsDataSource;
   List<Map<String, Object?>> _displayedLogs = [];
   int? _selectedLogId;
   bool _loading = true;
@@ -58,7 +57,6 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
   @override
   void initState() {
     super.initState();
-    _ownsDataSource = widget.dataSource == null;
     _dataSource = widget.dataSource ??
         LogDataSource(maxRecords: widget.maxRecords ?? 5000);
     _initDataSource();
@@ -66,10 +64,8 @@ class _TheLoggerViewerWidgetState extends State<TheLoggerViewerWidget> {
 
   @override
   void dispose() {
-    if (_ownsDataSource) {
-      _dataSource.dispose();
-    }
     _dataSource.onUpdate = null;
+    _dataSource.dispose();
     super.dispose();
   }
 
